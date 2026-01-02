@@ -20,7 +20,7 @@ static void freeproc(struct proc *p);
 //εργασία:
 
 //helper that returns how many ticks a process has according to its level
-static int
+int
 quantum_for_level(int level)
 {
   switch(level) {
@@ -32,6 +32,46 @@ quantum_for_level(int level)
       return 16; 
     default:
       return 32; 
+  }
+}
+
+//helper to check if we have a RUNNABLE in higher level than current level
+int
+higher_level_runnable(int cur_level)
+{
+  for(int i = 0; i < NPROC; i++){
+    struct proc *p = &proc[i];
+    acquire(&p->lock);
+    int flag= (p->state == RUNNABLE && p->mlfq_level < cur_level);
+    release(&p->lock);
+    if(flag){
+      return 1;
+    }
+  }
+  return 0;
+}
+
+//helper to increament the waitticks
+void
+mlfq_update_waitticks(struct proc *running)
+{
+  for(int i = 0; i < NPROC; i++){
+    struct proc *p = &proc[i];
+    if(p== running) {
+      continue;
+    }
+    acquire(&p->lock);
+    if(p->state == RUNNABLE){
+      p->waitticks++;
+
+      int q = quantum_for_level(p->mlfq_level);   
+      if(p->mlfq_level > 0 && p->waitticks >= 10 * q){
+        p->mlfq_level--;
+        p->quantum_left =quantum_for_level(p->mlfq_level);
+        p->waitticks= 0;
+      }
+    }
+    release(&p->lock);
   }
 }
 

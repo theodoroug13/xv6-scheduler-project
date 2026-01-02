@@ -163,7 +163,7 @@ sys_getpinfo(void)
       state_to_str(p->state,st.state[i]); 
       st.sz[i]=p->sz;
 
-      st.priority[i]=0;
+      st.priority[i]=p->mlfq_level;
         
     
     }

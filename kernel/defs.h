@@ -8,7 +8,8 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
-
+//εργασία
+struct proc;
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -101,6 +102,11 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+//εργασία
+int             higher_level_runnable(int current_level);
+void            mlfq_update_waitticks(struct proc *running);
+int             quantum_for_level(int level);
+
 
 // swtch.S
 void            swtch(struct context*, struct context*);

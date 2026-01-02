@@ -80,9 +80,36 @@ usertrap(void)
   if(killed(p))
     kexit(-1);
 
-  // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+
+  //εργασία:
+  //πλέον η διεργασία τρέχει ολόκληρο το quantum αν δεν υπάρχει άλλη διεργασία με υψηλότερη προτεραίότητα
+  
+  if(which_dev == 2){
+    int yield_flag = 0;
+
+    mlfq_update_waitticks(p);
+
+    acquire(&p->lock);
+    p->quantum_left--;
+
+    if(p->quantum_left <= 0){
+    if(p->mlfq_level < 3){
+      p->mlfq_level++;
+    }
+    p->quantum_left= quantum_for_level(p->mlfq_level);
+    p->waitticks = 0;
+    yield_flag = 1;
+  }
+  int cur_level = p->mlfq_level;
+  release(&p->lock);
+
+  if(!yield_flag && higher_level_runnable(cur_level)){
+    yield_flag = 1;
+  }
+
+  if(yield_flag)
     yield();
+  }
 
   prepare_return();
 
@@ -151,9 +178,36 @@ kerneltrap()
     panic("kerneltrap");
   }
 
-  // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2 && myproc() != 0)
-    yield();
+  //εργασία: πλέον δεν κάνει yield σε κάθε tcik
+ if(which_dev == 2){
+  struct proc *p = myproc();
+  if(p != 0 && p->state == RUNNING){
+    int yield_flag = 0;
+
+    mlfq_update_waitticks(p);
+
+    acquire(&p->lock);
+    p->quantum_left--;              
+    if(p->quantum_left <= 0){       
+      if(p->mlfq_level < 3)
+        p->mlfq_level++;
+
+      p->quantum_left = quantum_for_level(p->mlfq_level);  
+      p->waitticks = 0;
+      yield_flag = 1;
+    }
+
+    int cur_level = p->mlfq_level;
+    release(&p->lock);
+
+    if(!yield_flag && higher_level_runnable(cur_level))
+      yield_flag = 1;
+
+    if(yield_flag)
+      yield();
+  }
+}
+
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
