@@ -27,6 +27,7 @@ char* sys_sbrk(int,int);
 int pause(int);
 int uptime(void);
 //εργασία:
+//returns information on all active processes and copies them into a pstat struct
 int getpinfo(struct pstat *);
 
 // ulib.c

@@ -7,7 +7,7 @@
 #include "defs.h"
 
 struct cpu cpus[NCPU];
-
+// extern to be used in sysproc.c
 struct proc proc[NPROC];
 
 struct proc *initproc;

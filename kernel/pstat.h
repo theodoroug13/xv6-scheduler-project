@@ -18,6 +18,6 @@ struct pstat{
     //για MLFQ
     int priority[NPROC];
 
-}
+};
 
 #endif

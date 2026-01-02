@@ -6,6 +6,10 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "pstat.h"
+
+extern struct proc proc[NPROC];
+extern struct spinlock wait_lock;
 
 uint64
 sys_exit(void)
@@ -106,4 +110,71 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+//helper to turn state into a string
+static void
+state_to_str(enum procstate st, char *out)
+{
+  switch(st){
+  case UNUSED:safestrcpy(out, "UNUSED", PSTAT_STATELEN); 
+    break;
+  case USED:safestrcpy(out, "USED", PSTAT_STATELEN);
+    break;
+  case SLEEPING: safestrcpy(out, "SLEEPING", PSTAT_STATELEN); 
+    break;
+  case RUNNABLE: safestrcpy(out, "RUNNABLE", PSTAT_STATELEN);
+    break;
+  case RUNNING: safestrcpy(out, "RUNNING", PSTAT_STATELEN); 
+    break;
+  case ZOMBIE: safestrcpy(out, "ZOMBIE", PSTAT_STATELEN);
+    break;
+  default:safestrcpy(out, "?", PSTAT_STATELEN);
+    break;
+  }
+}
+
+
+// return info about every active process
+
+uint64
+sys_getpinfo(void)
+{
+  uint64 useraddr;
+  argaddr(0,&useraddr);
+  
+  struct pstat st;
+  memset(&st, 0, sizeof(st));
+
+  acquire(&wait_lock);
+  for( int i=0;i<NPROC;i++){
+    struct proc *p=&proc[i];
+    acquire(&p->lock);
+    if(p->state!=UNUSED){
+      st.pid[i]=p->pid;
+      st.inuse[i]=1;
+      if (p->parent){
+        st.ppid[i]=p->parent->pid;
+      }
+      else{
+        st.ppid[i]=0;
+      }
+      safestrcpy(st.name[i],p->name,PSTAT_NAMELEN);
+      state_to_str(p->state,st.state[i]); 
+      st.sz[i]=p->sz;
+
+      st.priority[i]=0;
+        
+    
+    }
+
+    release(&p->lock);
+
+  }
+  release(&wait_lock);
+  if(copyout(myproc()->pagetable,useraddr, (char*)&st, sizeof(st))<0){
+    printf("copyout error");
+    return -1;
+  }
+  return 0;
 }
