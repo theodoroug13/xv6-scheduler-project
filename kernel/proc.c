@@ -17,6 +17,24 @@ struct spinlock pid_lock;
 
 extern void forkret(void);
 static void freeproc(struct proc *p);
+//εργασία:
+
+//helper that returns how many ticks a process has according to its level
+static int
+quantum_for_level(int level)
+{
+  switch(level) {
+    case 0:
+      return 4; 
+    case 1:
+      return 8; 
+    case 2:
+      return 16; 
+    default:
+      return 32; 
+  }
+}
+
 
 extern char trampoline[]; // trampoline.S
 
@@ -124,6 +142,12 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+
+  //εργασία:
+  //initialize mlfq metadata
+  p->mlfq_level=0;
+  p->quantum_left=quantum_for_level(0);
+  p->waitticks=0;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -414,6 +438,9 @@ kwait(uint64 addr)
   }
 }
 
+
+//για τη λογική του round robin κρατάμε το Index του τελευταίου process σε κάθε ουρά είχε τη CPU 
+static int last_proc_idx[4]={0,0,0,0};
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -424,7 +451,6 @@ kwait(uint64 addr)
 void
 scheduler(void)
 {
-  struct proc *p;
   struct cpu *c = mycpu();
 
   c->proc = 0;
@@ -438,23 +464,28 @@ scheduler(void)
     intr_off();
 
     int found = 0;
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
+    for(int lvl = 0; lvl < 4 && !found; lvl++){
+      for(int offset = 1; offset <= NPROC; offset++){
+        int i = (last_proc_idx[lvl] + offset) % NPROC;
+        struct proc *p = &proc[i];
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
+        acquire(&p->lock);
+        if(p->state == RUNNABLE && p->mlfq_level == lvl){
+          p->state = RUNNING;
+          c->proc = p;
+          last_proc_idx[lvl] = i;
+
+          swtch(&c->context, &p->context);
+
+          c->proc = 0;
+          found = 1;
+          release(&p->lock);
+          break;
+        }
+        release(&p->lock);
       }
-      release(&p->lock);
     }
+    
     if(found == 0) {
       // nothing to run; stop running on this core until an interrupt.
       asm volatile("wfi");
