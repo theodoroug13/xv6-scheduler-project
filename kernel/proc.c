@@ -513,7 +513,9 @@ scheduler(void)
         if(p->state == RUNNABLE && p->mlfq_level == lvl){
           p->state = RUNNING;
           c->proc = p;
+          p->waitticks=0;
           last_proc_idx[lvl] = i;
+
 
           swtch(&c->context, &p->context);
 

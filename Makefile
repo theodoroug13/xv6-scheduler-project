@@ -146,6 +146,9 @@ UPROGS=\
 	$U/_forphan\
 	$U/_dorphan\
 	$U/_ps\
+	$U/_demotion\
+	$U/_preemption\
+	$U/_starvation\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
