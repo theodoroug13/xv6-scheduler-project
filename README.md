@@ -80,7 +80,10 @@ From the xv6-riscv root directory:
 
 ```bash
 make qemu
+```
+
 Run ps inside xv6:
+```bash
 ps
 ```
 
